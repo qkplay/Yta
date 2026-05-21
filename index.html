@@ -21,9 +21,9 @@ body{
 
 .box{
     width:90%;
-    max-width:420px;
+    max-width:460px;
     background:#1e1e1e;
-    padding:25px;
+    padding:22px;
     border-radius:22px;
     box-shadow:0 0 30px rgba(0,0,0,0.7);
     text-align:center;
@@ -37,12 +37,13 @@ h1{
 p{
     color:#ccc;
     font-size:14px;
+    line-height:1.7;
 }
 
 input{
     width:100%;
     padding:14px;
-    margin-top:15px;
+    margin-top:12px;
     border:none;
     border-radius:12px;
     font-size:16px;
@@ -53,13 +54,17 @@ input{
 button{
     width:100%;
     padding:14px;
-    margin-top:12px;
+    margin-top:10px;
     border:none;
     border-radius:12px;
-    font-size:17px;
+    font-size:16px;
     font-weight:bold;
     cursor:pointer;
-    transition:0.3s;
+    transition:0.25s;
+}
+
+button:hover{
+    transform:scale(1.02);
 }
 
 .playBtn{
@@ -72,21 +77,69 @@ button{
     color:white;
 }
 
-button:hover{
-    transform:scale(1.02);
+.showBtn{
+    background:#2d7cff;
+    color:white;
+}
+
+.bigBtn{
+    background:#8e44ad;
+    color:white;
+}
+
+.hideBtn{
+    background:#222;
+    color:#f5c542;
+    border:1px solid #555;
 }
 
 #status{
-    margin-top:15px;
+    margin-top:14px;
     color:#8aff8a;
     font-size:14px;
+    min-height:24px;
 }
 
+/* الوضع الافتراضي: شاشة مخفية تقريبا */
 #playerBox{
     width:1px;
     height:1px;
     overflow:hidden;
     opacity:0;
+    margin-top:0;
+    border-radius:15px;
+    background:#000;
+    transition:0.3s;
+}
+
+/* إظهار الشاشة */
+#playerBox.visible{
+    width:100%;
+    height:240px;
+    opacity:1;
+    margin-top:15px;
+}
+
+/* تكبير الشاشة */
+#playerBox.big{
+    width:100%;
+    height:430px;
+    opacity:1;
+    margin-top:15px;
+}
+
+#player{
+    width:100%;
+    height:100%;
+    border:0;
+    border-radius:15px;
+    background:#000;
+}
+
+.note{
+    margin-top:12px;
+    color:#aaa;
+    font-size:13px;
 }
 </style>
 </head>
@@ -98,7 +151,8 @@ button:hover{
     <h1>🎧 مشغل صوت يوتيوب</h1>
 
     <p>
-        الصق رابط فيديو يوتيوب وسيعمل الصوت فقط
+        الصق رابط فيديو يوتيوب وسيعمل الصوت فقط.<br>
+        لو ظهر إعلان، اضغط زر إظهار الشاشة ثم اضغط Skip بنفسك.
     </p>
 
     <input
@@ -114,13 +168,30 @@ button:hover{
         ■ إيقاف
     </button>
 
+    <button class="showBtn" onclick="togglePlayer()">
+        👁 إظهار / إخفاء شاشة يوتيوب
+    </button>
+
+    <button class="bigBtn" onclick="toggleBigPlayer()">
+        🔍 تكبير / تصغير الشاشة
+    </button>
+
+    <button class="hideBtn" onclick="hidePlayer()">
+        🙈 إخفاء الشاشة والعودة للصوت فقط
+    </button>
+
     <div id="status"></div>
 
     <div id="playerBox">
         <iframe
             id="player"
-            allow="autoplay">
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowfullscreen>
         </iframe>
+    </div>
+
+    <div class="note">
+        ملاحظة: الكود لا يستطيع الضغط على زر Skip تلقائيًا؛ أنت تظهر الشاشة وتضغطه يدويًا.
     </div>
 
 </div>
@@ -129,6 +200,8 @@ button:hover{
 
 let wakeLock = null;
 
+/* استخراج ID الفيديو من روابط يوتيوب المختلفة */
+
 function getVideoId(url){
 
     try{
@@ -136,7 +209,7 @@ function getVideoId(url){
         let u = new URL(url);
 
         if(u.hostname.includes("youtu.be")){
-            return u.pathname.slice(1);
+            return u.pathname.slice(1).split("?")[0];
         }
 
         if(u.searchParams.get("v")){
@@ -165,13 +238,16 @@ function getVideoId(url){
 
 }
 
+/* إبقاء شاشة الموبايل شغالة أثناء التشغيل */
+
 async function keepScreenOn(){
 
     try{
 
-        wakeLock = await navigator.wakeLock.request('screen');
-
-        console.log("Wake Lock Active");
+        if("wakeLock" in navigator){
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log("Wake Lock Active");
+        }
 
     }catch(err){
 
@@ -180,6 +256,8 @@ async function keepScreenOn(){
     }
 
 }
+
+/* تشغيل الفيديو مع إخفاء الشاشة افتراضيا */
 
 function playAudio(){
 
@@ -193,7 +271,6 @@ function playAudio(){
     if(!id){
 
         alert("الرابط غير صحيح");
-
         return;
 
     }
@@ -201,14 +278,18 @@ function playAudio(){
     keepScreenOn();
 
     const embedUrl =
-    `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0`;
+    `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1`;
 
     document.getElementById("player").src = embedUrl;
 
+    hidePlayer();
+
     document.getElementById("status").innerHTML =
-    "🎵 جاري تشغيل الصوت...";
+    "🎵 جاري التشغيل... الشاشة مخفية. لو ظهر إعلان اضغط إظهار الشاشة.";
 
 }
+
+/* إيقاف التشغيل */
 
 function stopAudio(){
 
@@ -216,6 +297,61 @@ function stopAudio(){
 
     document.getElementById("status").innerHTML =
     "⏹ تم الإيقاف";
+
+    hidePlayer();
+
+}
+
+/* إظهار أو إخفاء الشاشة */
+
+function togglePlayer(){
+
+    const box = document.getElementById("playerBox");
+
+    if(box.classList.contains("visible") || box.classList.contains("big")){
+        box.classList.remove("visible");
+        box.classList.remove("big");
+
+        document.getElementById("status").innerHTML =
+        "🙈 الشاشة مخفية والصوت مستمر";
+    }else{
+        box.classList.add("visible");
+
+        document.getElementById("status").innerHTML =
+        "👁 الشاشة ظاهرة الآن. اضغط Skip لو ظهر الإعلان.";
+    }
+
+}
+
+/* تكبير أو تصغير الشاشة */
+
+function toggleBigPlayer(){
+
+    const box = document.getElementById("playerBox");
+
+    if(box.classList.contains("big")){
+        box.classList.remove("big");
+        box.classList.add("visible");
+
+        document.getElementById("status").innerHTML =
+        "🔎 تم تصغير الشاشة";
+    }else{
+        box.classList.remove("visible");
+        box.classList.add("big");
+
+        document.getElementById("status").innerHTML =
+        "🔍 الشاشة مكبرة. اضغط Skip لو ظهر الإعلان.";
+    }
+
+}
+
+/* إخفاء الشاشة فقط */
+
+function hidePlayer(){
+
+    const box = document.getElementById("playerBox");
+    box.classList.remove("visible");
+    box.classList.remove("big");
 
 }
 
