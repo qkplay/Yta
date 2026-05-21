@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>مشغل صوت يوتيوب</title>
+
+<style>
+body{
+    margin:0;
+    padding:0;
+    background:#111;
+    color:white;
+    font-family:Tahoma, Arial;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+}
+
+.box{
+    width:90%;
+    max-width:420px;
+    background:#1e1e1e;
+    padding:25px;
+    border-radius:22px;
+    box-shadow:0 0 30px rgba(0,0,0,0.7);
+    text-align:center;
+}
+
+h1{
+    margin-top:0;
+    color:#f5c542;
+}
+
+p{
+    color:#ccc;
+    font-size:14px;
+}
+
+input{
+    width:100%;
+    padding:14px;
+    margin-top:15px;
+    border:none;
+    border-radius:12px;
+    font-size:16px;
+    box-sizing:border-box;
+    outline:none;
+}
+
+button{
+    width:100%;
+    padding:14px;
+    margin-top:12px;
+    border:none;
+    border-radius:12px;
+    font-size:17px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.playBtn{
+    background:#f5c542;
+    color:#111;
+}
+
+.stopBtn{
+    background:#444;
+    color:white;
+}
+
+button:hover{
+    transform:scale(1.02);
+}
+
+#status{
+    margin-top:15px;
+    color:#8aff8a;
+    font-size:14px;
+}
+
+#playerBox{
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    opacity:0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+    <h1>🎧 مشغل صوت يوتيوب</h1>
+
+    <p>
+        الصق رابط فيديو يوتيوب وسيعمل الصوت فقط
+    </p>
+
+    <input
+        type="text"
+        id="youtubeUrl"
+        placeholder="ضع رابط اليوتيوب هنا">
+
+    <button class="playBtn" onclick="playAudio()">
+        ▶ تشغيل
+    </button>
+
+    <button class="stopBtn" onclick="stopAudio()">
+        ■ إيقاف
+    </button>
+
+    <div id="status"></div>
+
+    <div id="playerBox">
+        <iframe
+            id="player"
+            allow="autoplay">
+        </iframe>
+    </div>
+
+</div>
+
+<script>
+
+let wakeLock = null;
+
+function getVideoId(url){
+
+    try{
+
+        let u = new URL(url);
+
+        if(u.hostname.includes("youtu.be")){
+            return u.pathname.slice(1);
+        }
+
+        if(u.searchParams.get("v")){
+            return u.searchParams.get("v");
+        }
+
+        if(u.pathname.includes("/shorts/")){
+            return u.pathname
+                    .split("/shorts/")[1]
+                    .split("/")[0];
+        }
+
+        if(u.pathname.includes("/embed/")){
+            return u.pathname
+                    .split("/embed/")[1]
+                    .split("/")[0];
+        }
+
+        return null;
+
+    }catch(e){
+
+        return null;
+
+    }
+
+}
+
+async function keepScreenOn(){
+
+    try{
+
+        wakeLock = await navigator.wakeLock.request('screen');
+
+        console.log("Wake Lock Active");
+
+    }catch(err){
+
+        console.log(err);
+
+    }
+
+}
+
+function playAudio(){
+
+    const url = document
+                .getElementById("youtubeUrl")
+                .value
+                .trim();
+
+    const id = getVideoId(url);
+
+    if(!id){
+
+        alert("الرابط غير صحيح");
+
+        return;
+
+    }
+
+    keepScreenOn();
+
+    const embedUrl =
+    `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0`;
+
+    document.getElementById("player").src = embedUrl;
+
+    document.getElementById("status").innerHTML =
+    "🎵 جاري تشغيل الصوت...";
+
+}
+
+function stopAudio(){
+
+    document.getElementById("player").src = "";
+
+    document.getElementById("status").innerHTML =
+    "⏹ تم الإيقاف";
+
+}
+
+</script>
+
+</body>
+</html>
