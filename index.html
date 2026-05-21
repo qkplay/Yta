@@ -93,6 +93,16 @@ button:hover{
     border:1px solid #555;
 }
 
+.timerBtn{
+    background:#e67e22;
+    color:white;
+}
+
+.cancelBtn{
+    background:#c0392b;
+    color:white;
+}
+
 #status{
     margin-top:14px;
     color:#8aff8a;
@@ -100,7 +110,13 @@ button:hover{
     min-height:24px;
 }
 
-/* الوضع الافتراضي: شاشة مخفية تقريبا */
+#timerStatus{
+    margin-top:10px;
+    color:#f5c542;
+    min-height:24px;
+}
+
+/* الوضع الافتراضي: شاشة مخفية */
 #playerBox{
     width:1px;
     height:1px;
@@ -140,6 +156,7 @@ button:hover{
     margin-top:12px;
     color:#aaa;
     font-size:13px;
+    line-height:1.6;
 }
 </style>
 </head>
@@ -152,7 +169,7 @@ button:hover{
 
     <p>
         الصق رابط فيديو يوتيوب وسيعمل الصوت فقط.<br>
-        لو ظهر إعلان، اضغط زر إظهار الشاشة ثم اضغط Skip بنفسك.
+        لو ظهر إعلان اضغط إظهار الشاشة ثم اضغط Skip بنفسك.
     </p>
 
     <input
@@ -169,7 +186,7 @@ button:hover{
     </button>
 
     <button class="showBtn" onclick="togglePlayer()">
-        👁 إظهار / إخفاء شاشة يوتيوب
+        👁 إظهار / إخفاء الشاشة
     </button>
 
     <button class="bigBtn" onclick="toggleBigPlayer()">
@@ -177,8 +194,24 @@ button:hover{
     </button>
 
     <button class="hideBtn" onclick="hidePlayer()">
-        🙈 إخفاء الشاشة والعودة للصوت فقط
+        🙈 صوت فقط
     </button>
+
+    <input
+        type="number"
+        id="sleepMinutes"
+        placeholder="عدد الدقائق قبل الإيقاف التلقائي"
+        min="1">
+
+    <button class="timerBtn" onclick="startSleepTimer()">
+        ⏰ بدء مؤقت الإيقاف
+    </button>
+
+    <button class="cancelBtn" onclick="cancelSleepTimer()">
+        ❌ إلغاء المؤقت
+    </button>
+
+    <div id="timerStatus"></div>
 
     <div id="status"></div>
 
@@ -191,7 +224,7 @@ button:hover{
     </div>
 
     <div class="note">
-        ملاحظة: الكود لا يستطيع الضغط على زر Skip تلقائيًا؛ أنت تظهر الشاشة وتضغطه يدويًا.
+        الصفحة تحفظ الشاشة شغالة أثناء التشغيل، وتدعم مؤقت نوم لإيقاف الصوت تلقائيًا.
     </div>
 
 </div>
@@ -199,8 +232,10 @@ button:hover{
 <script>
 
 let wakeLock = null;
+let sleepTimeout = null;
+let countdownInterval = null;
 
-/* استخراج ID الفيديو من روابط يوتيوب المختلفة */
+/* استخراج ID الفيديو */
 
 function getVideoId(url){
 
@@ -238,15 +273,16 @@ function getVideoId(url){
 
 }
 
-/* إبقاء شاشة الموبايل شغالة أثناء التشغيل */
+/* إبقاء الشاشة شغالة */
 
 async function keepScreenOn(){
 
     try{
 
         if("wakeLock" in navigator){
+
             wakeLock = await navigator.wakeLock.request('screen');
-            console.log("Wake Lock Active");
+
         }
 
     }catch(err){
@@ -257,7 +293,7 @@ async function keepScreenOn(){
 
 }
 
-/* تشغيل الفيديو مع إخفاء الشاشة افتراضيا */
+/* تشغيل */
 
 function playAudio(){
 
@@ -271,6 +307,7 @@ function playAudio(){
     if(!id){
 
         alert("الرابط غير صحيح");
+
         return;
 
     }
@@ -285,11 +322,11 @@ function playAudio(){
     hidePlayer();
 
     document.getElementById("status").innerHTML =
-    "🎵 جاري التشغيل... الشاشة مخفية. لو ظهر إعلان اضغط إظهار الشاشة.";
+    "🎵 جاري التشغيل...";
 
 }
 
-/* إيقاف التشغيل */
+/* إيقاف */
 
 function stopAudio(){
 
@@ -302,56 +339,131 @@ function stopAudio(){
 
 }
 
-/* إظهار أو إخفاء الشاشة */
+/* إظهار/إخفاء */
 
 function togglePlayer(){
 
     const box = document.getElementById("playerBox");
 
     if(box.classList.contains("visible") || box.classList.contains("big")){
+
         box.classList.remove("visible");
         box.classList.remove("big");
 
         document.getElementById("status").innerHTML =
         "🙈 الشاشة مخفية والصوت مستمر";
+
     }else{
+
         box.classList.add("visible");
 
         document.getElementById("status").innerHTML =
-        "👁 الشاشة ظاهرة الآن. اضغط Skip لو ظهر الإعلان.";
+        "👁 الشاشة ظاهرة";
+
     }
 
 }
 
-/* تكبير أو تصغير الشاشة */
+/* تكبير */
 
 function toggleBigPlayer(){
 
     const box = document.getElementById("playerBox");
 
     if(box.classList.contains("big")){
+
         box.classList.remove("big");
         box.classList.add("visible");
 
-        document.getElementById("status").innerHTML =
-        "🔎 تم تصغير الشاشة";
     }else{
+
         box.classList.remove("visible");
         box.classList.add("big");
 
-        document.getElementById("status").innerHTML =
-        "🔍 الشاشة مكبرة. اضغط Skip لو ظهر الإعلان.";
     }
 
 }
 
-/* إخفاء الشاشة فقط */
+/* إخفاء */
 
 function hidePlayer(){
 
     const box = document.getElementById("playerBox");
+
     box.classList.remove("visible");
     box.classList.remove("big");
+
+}
+
+/* مؤقت النوم */
+
+function startSleepTimer(){
+
+    const minutes = parseInt(
+        document.getElementById("sleepMinutes").value
+    );
+
+    if(!minutes || minutes <= 0){
+
+        alert("ضع عدد دقائق صحيح");
+
+        return;
+    }
+
+    cancelSleepTimer(false);
+
+    let remainingSeconds = minutes * 60;
+
+    updateCountdown(remainingSeconds);
+
+    countdownInterval = setInterval(()=>{
+
+        remainingSeconds--;
+
+        updateCountdown(remainingSeconds);
+
+        if(remainingSeconds <= 0){
+
+            clearInterval(countdownInterval);
+
+        }
+
+    },1000);
+
+    sleepTimeout = setTimeout(()=>{
+
+        stopAudio();
+
+        document.getElementById("timerStatus").innerHTML =
+        "😴 تم إيقاف التشغيل تلقائيًا";
+
+    }, minutes * 60 * 1000);
+
+}
+
+function cancelSleepTimer(showMessage = true){
+
+    clearTimeout(sleepTimeout);
+
+    clearInterval(countdownInterval);
+
+    if(showMessage){
+
+        document.getElementById("timerStatus").innerHTML =
+        "❌ تم إلغاء المؤقت";
+
+    }
+
+}
+
+function updateCountdown(seconds){
+
+    const mins = Math.floor(seconds / 60);
+
+    const secs = seconds % 60;
+
+    document.getElementById("timerStatus").innerHTML =
+    `⏳ الإيقاف بعد ${mins}:${secs.toString().padStart(2,'0')}`;
 
 }
 
